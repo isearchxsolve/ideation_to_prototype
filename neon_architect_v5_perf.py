@@ -588,7 +588,7 @@ DEFAULT_CONFIG = {
     "max_retries_per_provider": 1,
     "nim_shared_rpm": 38.0,
     "omniroute_shared_rpm": 8.0,
-    "thinking_effort": "high",
+    "thinking_effort": "low",
     "allow_medium_high_thinking": True,
     "first_token_timeout_off": 60.0,
     "first_token_timeout_low": 150.0,
@@ -10275,7 +10275,7 @@ def load_config() -> Dict[str, Any]:
         "rpm_safety": 0.80,
         # Keep thinking policy configurable; unlike the legacy branch, the
         # loader must not silently downgrade a saved medium/high setting.
-        "thinking_effort": "high",
+        "thinking_effort": "low",
         "allow_medium_high_thinking": True,
         "show_thinking": True,
         "autopilot_thinking": False,
