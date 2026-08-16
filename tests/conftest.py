@@ -145,11 +145,11 @@ def driver(_session_driver, env_config: dict[str, Any], live_server: str) -> Gen
     the current origin), and resets implicit wait so one test's waits
     cannot leak into the next.
     """
-    from selenium.common.exceptions import NoSuchAlertException
+    from selenium.common.exceptions import NoAlertPresentException
 
     try:
         _session_driver.switch_to.alert.dismiss()
-    except NoSuchAlertException:
+    except NoAlertPresentException:
         pass  # no alert present is the common case
     try:
         _session_driver.get(live_server)
