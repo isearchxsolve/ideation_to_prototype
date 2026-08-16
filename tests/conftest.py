@@ -333,24 +333,19 @@ def _wait_for_port(host: str, port: int, timeout: float = 10.0) -> bool:
 def live_server(env_config: dict[str, Any]):
     """Start the Flask demo app as a real HTTP server for Selenium tests.
 
-    Spins up the demo app on 127.0.0.1:8000 in a background thread,
-    waits for the port to be ready, then yields the base URL. Each xdist
-    worker gets its own server instance; if port 8000 is already taken
-    (e.g. by another worker), an ephemeral port is used instead.
+    Binds to an OS-assigned ephemeral port (port 0) so parallel xdist
+    workers and CI matrix jobs never contend for a fixed port. Waits for
+    the port to accept connections, then yields the base URL.
     """
     from src.demo.app import create_app
 
     app = create_app()
     host = "127.0.0.1"
 
-    server = None
-    port = 8000
-    try:
-        server = make_server(host, port, app, threaded=True)
-    except OSError:
-        # Port 8000 taken (likely by another xdist worker) — use any free port.
-        server = make_server(host, 0, app, threaded=True)
-        port = server.server_port
+    # Port 0 lets the OS pick a free port — avoids "Address already in use"
+    # when multiple workers/CI jobs run concurrently.
+    server = make_server(host, 0, app, threaded=True)
+    port = server.server_port
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
