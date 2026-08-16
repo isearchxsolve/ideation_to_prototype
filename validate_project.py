@@ -24,10 +24,20 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 def count_collected_tests() -> int:
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests", "--collect-only", "-q", "-o", "addopts="],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests",
+            "--collect-only",
+            "-q",
+            "-o",
+            "addopts=",
+        ],
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     return sum(1 for line in proc.stdout.splitlines() if "::" in line)
 
@@ -53,10 +63,20 @@ def main() -> int:
 
     # 3. Test runner collects cleanly (full run verified by stability runs)
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests", "--collect-only", "-q", "-o", "addopts="],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests",
+            "--collect-only",
+            "-q",
+            "-o",
+            "addopts=",
+        ],
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     check("3. pytest collection exits cleanly", proc.returncode == 0)
 
@@ -107,12 +127,14 @@ def main() -> int:
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     black = subprocess.run(
         [sys.executable, "-m", "black", "--check", "-q", "tests", "src"],
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     check(
         "9. ruff + black clean",

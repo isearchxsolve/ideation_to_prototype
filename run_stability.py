@@ -29,6 +29,7 @@ for i in range(1, N_RUNS + 1):
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     duration = round(time.time() - t0, 1)
     tail = "\n".join(proc.stdout.strip().splitlines()[-3:])
