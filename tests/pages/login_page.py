@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 from tests.pages.base_page import BasePage
 from tests.pages.page_factory import register
 
@@ -19,12 +17,12 @@ class LoginPage(BasePage):
     ERROR_BANNER = ("css selector", "[data-testid='login-error']")
     FORGOT_LINK = ("css selector", "[data-testid='login-forgot']")
 
-    def navigate(self) -> "LoginPage":
+    def navigate(self) -> LoginPage:
         """Navigate to the login page."""
         self.open(self.PATH)
         return self
 
-    def login(self, email: str, password: str) -> "LoginPage":
+    def login(self, email: str, password: str) -> LoginPage:
         """Fill in login form and submit."""
         self.type(self.EMAIL_INPUT, email)
         self.type(self.PASSWORD_INPUT, password)

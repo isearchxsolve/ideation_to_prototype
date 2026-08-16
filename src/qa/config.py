@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass(frozen=True)
@@ -41,7 +40,7 @@ class EnvironmentConfig:
             return default
 
     @classmethod
-    def from_env(cls, env: dict | None = None) -> "EnvironmentConfig":
+    def from_env(cls, env: dict | None = None) -> EnvironmentConfig:
         """Build a config from os.environ (or an injected mapping for tests)."""
         src = os.environ if env is None else env
         creds = {
@@ -64,5 +63,5 @@ class EnvironmentConfig:
         )
 
     @property
-    def supported_browsers(self) -> List[str]:
+    def supported_browsers(self) -> list[str]:
         return ["chromium", "firefox", "edge"]

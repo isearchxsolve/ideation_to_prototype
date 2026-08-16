@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 from tests.pages.base_page import BasePage
 from tests.pages.page_factory import register
 
@@ -18,12 +16,12 @@ class DashboardPage(BasePage):
     WELCOME_BANNER = ("css selector", "[data-testid='welcome-banner']")
     NAVIGATION_LINKS = ("css selector", "[data-testid='nav-link']")
 
-    def navigate(self) -> "DashboardPage":
+    def navigate(self) -> DashboardPage:
         """Navigate to the dashboard page."""
         self.open(self.PATH)
         return self
 
-    def logout(self) -> "DashboardPage":
+    def logout(self) -> DashboardPage:
         """Click user menu then logout button."""
         self.click(self.USER_MENU)
         self.click(self.LOGOUT_BUTTON)

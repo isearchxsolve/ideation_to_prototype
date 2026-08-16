@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 try:
     from dotenv import load_dotenv
-except Exception:  # pragma: no cover - dotenv is optional
+except ImportError:  # pragma: no cover - dotenv is optional
+
     def load_dotenv(*_args, **_kwargs):  # type: ignore[no-redef]
         return False
 
@@ -60,11 +60,13 @@ class EnvironmentConfig:
     PARALLEL_WORKERS: int = _get_int("QA_PARALLEL_WORKERS", 4)
     TEST_TIMEOUT: int = _get_int("QA_TEST_TIMEOUT", 60)
 
-    USERNAME: Optional[str] = os.getenv("QA_USERNAME")
-    PASSWORD: Optional[str] = os.getenv("QA_PASSWORD")
+    USERNAME: str | None = os.getenv("QA_USERNAME")
+    PASSWORD: str | None = os.getenv("QA_PASSWORD")
 
     REPORTS_DIR: Path = Path(os.getenv("QA_REPORTS_DIR", "reports")).resolve()
-    SCREENSHOTS_DIR: Path = Path(os.getenv("QA_SCREENSHOTS_DIR", "reports/screenshots")).resolve()
+    SCREENSHOTS_DIR: Path = Path(
+        os.getenv("QA_SCREENSHOTS_DIR", "reports/screenshots")
+    ).resolve()
     LOGS_DIR: Path = Path(os.getenv("QA_LOGS_DIR", "reports/logs")).resolve()
 
     @classmethod

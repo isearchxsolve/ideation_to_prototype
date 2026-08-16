@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from selenium.webdriver.remote.webdriver import WebDriver
-
 from tests.pages.base_page import BasePage
 from tests.pages.page_factory import register
 
@@ -21,12 +19,12 @@ class SignupPage(BasePage):
     SUCCESS_BANNER = ("css selector", "[data-testid='signup-success']")
     ERROR_BANNER = ("css selector", "[data-testid='signup-error']")
 
-    def navigate(self) -> "SignupPage":
+    def navigate(self) -> SignupPage:
         """Navigate to the signup page."""
         self.open(self.PATH)
         return self
 
-    def register(self, name: str, email: str, password: str) -> "SignupPage":
+    def register(self, name: str, email: str, password: str) -> SignupPage:
         """Fill in registration form and submit."""
         self.type(self.NAME_INPUT, name)
         self.type(self.EMAIL_INPUT, email)

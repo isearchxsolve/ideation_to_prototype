@@ -6,11 +6,18 @@ for the 1000 Selenium test cases.
 
 from __future__ import annotations
 
+import html
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 
-from flask import Flask, jsonify, redirect, render_template_string, request, session, url_for
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    request,
+    session,
+)
 
 
 def create_app() -> Flask:
@@ -18,10 +25,10 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config["TESTING"] = True
     app.config["SECRET_KEY"] = "test-secret-key-for-qa-only"
-    
+
     # In-memory data stores
-    users: Dict[str, Dict[str, Any]] = {}
-    messages: List[Dict[str, Any]] = []
+    users: dict[str, dict[str, Any]] = {}
+    messages: list[dict[str, Any]] = []
 
     # HTML Templates with data-testid attributes
     BASE_TEMPLATE = """<!DOCTYPE html>
@@ -43,7 +50,7 @@ def create_app() -> Flask:
 <div data-testid="features">
   <div data-testid="feature-auth">User Authentication</div>
   <div data-testid="feature-messages">Message Board</div>
-</div>"""
+</div>""",
     )
 
     LOGIN_HTML = BASE_TEMPLATE.format(
@@ -56,7 +63,7 @@ def create_app() -> Flask:
   <button type="submit" data-testid="login-submit">Login</button>
 </form>
 <p data-testid="login-error" class="error"></p>
-<a href="/forgot" data-testid="login-forgot">Forgot password?</a>"""
+<a href="/forgot" data-testid="login-forgot">Forgot password?</a>""",
     )
 
     SIGNUP_HTML = BASE_TEMPLATE.format(
@@ -71,7 +78,7 @@ def create_app() -> Flask:
   <button type="submit" data-testid="signup-submit">Sign Up</button>
 </form>
 <p data-testid="signup-success" class="success"></p>
-<p data-testid="signup-error" class="error"></p>"""
+<p data-testid="signup-error" class="error"></p>""",
     )
 
     DASHBOARD_HTML = BASE_TEMPLATE.format(
@@ -83,7 +90,7 @@ def create_app() -> Flask:
 </div>
 <div data-testid="dashboard-content">
   <p>You are logged in.</p>
-</div>"""
+</div>""",
     )
 
     MESSAGES_HTML = BASE_TEMPLATE.format(
@@ -96,7 +103,7 @@ def create_app() -> Flask:
 </form>
 <ul data-testid="messages-list">
 {messages}
-</ul>"""
+</ul>""",
     )
 
     @app.route("/")
@@ -120,8 +127,13 @@ def create_app() -> Flask:
             if user and user.get("password") == password:
                 session["user_email"] = email
                 return redirect("/dashboard")
-            return LOGIN_HTML.replace('<p data-testid="login-error"', 
-                                      '<p data-testid="login-error">Invalid credentials</p><p data-testid="login-error"'), 401
+            return (
+                LOGIN_HTML.replace(
+                    '<p data-testid="login-error"',
+                    '<p data-testid="login-error">Invalid credentials</p><p data-testid="login-error"',
+                ),
+                401,
+            )
         return LOGIN_HTML
 
     @app.route("/signup", methods=["GET", "POST"])
@@ -131,24 +143,36 @@ def create_app() -> Flask:
             email = request.form.get("email", "")
             password = request.form.get("password", "")
             confirm = request.form.get("confirm", "")
-            
+
             if password != confirm:
-                return SIGNUP_HTML.replace('<p data-testid="signup-error"',
-                                          '<p data-testid="signup-error">Passwords do not match</p><p data-testid="signup-error"'), 400
-            
+                return (
+                    SIGNUP_HTML.replace(
+                        '<p data-testid="signup-error"',
+                        '<p data-testid="signup-error">Passwords do not match</p><p data-testid="signup-error"',
+                    ),
+                    400,
+                )
+
             if email in users:
-                return SIGNUP_HTML.replace('<p data-testid="signup-error"',
-                                          '<p data-testid="signup-error">Email already exists</p><p data-testid="signup-error"'), 400
-            
+                return (
+                    SIGNUP_HTML.replace(
+                        '<p data-testid="signup-error"',
+                        '<p data-testid="signup-error">Email already exists</p><p data-testid="signup-error"',
+                    ),
+                    400,
+                )
+
             users[email] = {
                 "id": str(uuid.uuid4()),
                 "name": name,
                 "email": email,
                 "password": password,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
-            return SIGNUP_HTML.replace('<p data-testid="signup-success"',
-                                       '<p data-testid="signup-success">Account created!</p><p data-testid="signup-success"')
+            return SIGNUP_HTML.replace(
+                '<p data-testid="signup-success"',
+                '<p data-testid="signup-success">Account created!</p><p data-testid="signup-success"',
+            )
         return SIGNUP_HTML
 
     @app.route("/dashboard")
@@ -169,15 +193,17 @@ def create_app() -> Flask:
         if request.method == "POST":
             msg = request.form.get("message", "").strip()
             if msg:
-                messages.append({
-                    "id": str(uuid.uuid4()),
-                    "text": msg,
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                })
+                messages.append(
+                    {
+                        "id": str(uuid.uuid4()),
+                        "text": msg,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
             return redirect("/messages")
-        
+
         msgs_html = "\n".join(
-            f'<li data-testid="message-item" data-id="{m["id"]}">{m["text"]}</li>'
+            f'<li data-testid="message-item" data-id="{m["id"]}">{html.escape(m["text"])}</li>'
             for m in messages[-50:]
         )
         return MESSAGES_HTML.format(messages=msgs_html)
@@ -197,26 +223,51 @@ def create_app() -> Flask:
                     "name": data.get("name", ""),
                     "email": email,
                     "password": data.get("password", ""),
-                    "created_at": datetime.now(timezone.utc).isoformat()
+                    "created_at": datetime.now(timezone.utc).isoformat(),
                 }
             return jsonify({"created": True}), 201
-        return jsonify({"users": [{"id": u["id"], "name": u["name"], "email": u["email"]} for u in users.values()]})
+        return jsonify(
+            {
+                "users": [
+                    {"id": u["id"], "name": u["name"], "email": u["email"]}
+                    for u in users.values()
+                ]
+            }
+        )
 
     @app.route("/about")
     def about():
-        return BASE_TEMPLATE.format(title="About", content="<h1>About</h1><p>Demo app for QA testing.</p>")
+        return BASE_TEMPLATE.format(
+            title="About", content="<h1>About</h1><p>Demo app for QA testing.</p>"
+        )
 
     @app.errorhandler(404)
     def not_found(e):
-        return BASE_TEMPLATE.format(title="404", content='<h1 data-testid="error-404">Page Not Found</h1>'), 404
+        return (
+            BASE_TEMPLATE.format(
+                title="404", content='<h1 data-testid="error-404">Page Not Found</h1>'
+            ),
+            404,
+        )
 
     @app.errorhandler(500)
     def server_error(e):
-        return BASE_TEMPLATE.format(title="500", content='<h1 data-testid="error-500">Server Error</h1>'), 500
+        return (
+            BASE_TEMPLATE.format(
+                title="500", content='<h1 data-testid="error-500">Server Error</h1>'
+            ),
+            500,
+        )
 
     return app
 
 
 if __name__ == "__main__":
+    import os
+
     app = create_app()
-    app.run(host="127.0.0.1", port=8000, debug=True)
+    app.run(
+        host=os.environ.get("APP_HOST", "127.0.0.1"),
+        port=int(os.environ.get("APP_PORT", "8000")),
+        debug=os.environ.get("APP_DEBUG", "0") == "1",
+    )

@@ -7,7 +7,7 @@ registered via the ``register`` decorator or ``register_page`` function.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Type
+from typing import ClassVar
 
 from tests.pages.base_page import BasePage
 
@@ -15,14 +15,14 @@ from tests.pages.base_page import BasePage
 class PageFactory:
     """Registry mapping route names to page object classes."""
 
-    _registry: Dict[str, Type[BasePage]] = {}
-    _route_aliases: Dict[str, str] = {}
+    _registry: ClassVar[dict[str, type[BasePage]]] = {}
+    _route_aliases: ClassVar[dict[str, str]] = {}
 
     @classmethod
     def register(cls, route: str, *aliases: str):
         """Class decorator to register a page object for a route."""
 
-        def decorator(page_cls: Type[BasePage]) -> Type[BasePage]:
+        def decorator(page_cls: type[BasePage]) -> type[BasePage]:
             cls._registry[route] = page_cls
             for alias in aliases:
                 cls._route_aliases[alias] = route
@@ -31,14 +31,14 @@ class PageFactory:
         return decorator
 
     @classmethod
-    def register_page(cls, route: str, page_cls: Type[BasePage], *aliases: str) -> None:
+    def register_page(cls, route: str, page_cls: type[BasePage], *aliases: str) -> None:
         """Register a page object class for a route programmatically."""
         cls._registry[route] = page_cls
         for alias in aliases:
             cls._route_aliases[alias] = route
 
     @classmethod
-    def get_page(cls, route: str) -> Type[BasePage]:
+    def get_page(cls, route: str) -> type[BasePage]:
         """Return the page object class registered for ``route``.
 
         Raises ``KeyError`` if no page is registered for the route.
@@ -49,7 +49,9 @@ class PageFactory:
         return cls._registry[resolved]
 
     @classmethod
-    def create(cls, route: str, driver, base_url: str = "", timeout: int = 10) -> BasePage:
+    def create(
+        cls, route: str, driver, base_url: str = "", timeout: int = 10
+    ) -> BasePage:
         """Instantiate and return a page object for ``route``.
 
         Parameters
@@ -67,7 +69,7 @@ class PageFactory:
         return page_cls(driver=driver, base_url=base_url, timeout=timeout)
 
     @classmethod
-    def all_routes(cls) -> List[str]:
+    def all_routes(cls) -> list[str]:
         """Return all registered route names."""
         return list(cls._registry.keys())
 
@@ -84,7 +86,7 @@ class PageFactory:
         return resolved in cls._registry
 
 
-def get_page_class(route: str) -> Type[BasePage]:
+def get_page_class(route: str) -> type[BasePage]:
     """Module-level convenience wrapper around ``PageFactory.get_page``."""
     return PageFactory.get_page(route)
 
@@ -99,11 +101,11 @@ def register(route: str, *aliases: str):
     return PageFactory.register(route, *aliases)
 
 
-def list_pages() -> List[str]:
+def list_pages() -> list[str]:
     """Return all registered route names."""
     return PageFactory.all_routes()
 
 
-def find_page_by_alias(alias: str) -> Optional[str]:
+def find_page_by_alias(alias: str) -> str | None:
     """Resolve an alias to its canonical route name, if registered."""
     return PageFactory._route_aliases.get(alias)

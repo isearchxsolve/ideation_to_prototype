@@ -9,12 +9,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Union
 
 from selenium.common.exceptions import (
     ElementClickInterceptedException,
-    ElementNotInteractableException,
-    NoSuchElementException,
     StaleElementReferenceException,
     TimeoutException,
 )
@@ -41,7 +38,7 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # Navigation
     # ------------------------------------------------------------------ #
-    def open(self, path: str = "") -> "BasePage":
+    def open(self, path: str = "") -> BasePage:
         """Navigate to base_url + path and return self for chaining."""
         url = f"{self.base_url}/{path.lstrip('/')}"
         self.driver.get(url)
@@ -68,16 +65,18 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # Element resolution
     # ------------------------------------------------------------------ #
-    def find(self, locator: Locator, timeout: Optional[int] = None) -> WebElement:
+    def find(self, locator: Locator, timeout: int | None = None) -> WebElement:
         """Wait for element presence and return it."""
         wait = self.wait if timeout is None else WebDriverWait(self.driver, timeout)
         return wait.until(EC.presence_of_element_located(locator))
 
-    def find_visible(self, locator: Locator, timeout: Optional[int] = None) -> WebElement:
+    def find_visible(self, locator: Locator, timeout: int | None = None) -> WebElement:
         wait = self.wait if timeout is None else WebDriverWait(self.driver, timeout)
         return wait.until(EC.visibility_of_element_located(locator))
 
-    def find_all(self, locator: Locator, timeout: Optional[int] = None) -> list[WebElement]:
+    def find_all(
+        self, locator: Locator, timeout: int | None = None
+    ) -> list[WebElement]:
         wait = self.wait if timeout is None else WebDriverWait(self.driver, timeout)
         return wait.until(EC.presence_of_all_elements_located(locator))
 
@@ -98,7 +97,7 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # Interactions
     # ------------------------------------------------------------------ #
-    def click(self, locator: Locator, timeout: Optional[int] = None) -> "BasePage":
+    def click(self, locator: Locator, timeout: int | None = None) -> BasePage:
         """Click an element, retrying once on interception/staleness."""
         element = self.find_visible(locator, timeout=timeout)
         try:
@@ -107,7 +106,7 @@ class BasePage:
             self.driver.execute_script("arguments[0].click();", element)
         return self
 
-    def type(self, locator: Locator, text: str, clear: bool = True) -> "BasePage":
+    def type(self, locator: Locator, text: str, clear: bool = True) -> BasePage:
         """Type text into an input, optionally clearing it first."""
         element = self.find_visible(locator)
         if clear:
@@ -119,7 +118,7 @@ class BasePage:
         element = self.find_visible(locator)
         return element.text.strip()
 
-    def get_attribute(self, locator: Locator, name: str) -> Optional[str]:
+    def get_attribute(self, locator: Locator, name: str) -> str | None:
         element = self.find(locator)
         return element.get_attribute(name)
 
@@ -127,7 +126,7 @@ class BasePage:
         value = self.get_attribute(locator, "value")
         return value if value is not None else ""
 
-    def select_option(self, locator: Locator, value: str) -> "BasePage":
+    def select_option(self, locator: Locator, value: str) -> BasePage:
         """Select an option in a <select> by its value attribute."""
         from selenium.webdriver.support.ui import Select
 
@@ -135,7 +134,7 @@ class BasePage:
         Select(element).select_by_value(value)
         return self
 
-    def submit(self, locator: Locator) -> "BasePage":
+    def submit(self, locator: Locator) -> BasePage:
         element = self.find_visible(locator)
         element.submit()
         return self
@@ -143,7 +142,9 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # State assertions helpers
     # ------------------------------------------------------------------ #
-    def wait_for_text(self, locator: Locator, text: str, timeout: Optional[int] = None) -> bool:
+    def wait_for_text(
+        self, locator: Locator, text: str, timeout: int | None = None
+    ) -> bool:
         wait = self.wait if timeout is None else WebDriverWait(self.driver, timeout)
         try:
             wait.until(EC.text_to_be_present_in_element(locator, text))
@@ -151,7 +152,7 @@ class BasePage:
         except TimeoutException:
             return False
 
-    def wait_for_url_contains(self, fragment: str, timeout: Optional[int] = None) -> bool:
+    def wait_for_url_contains(self, fragment: str, timeout: int | None = None) -> bool:
         wait = self.wait if timeout is None else WebDriverWait(self.driver, timeout)
         try:
             wait.until(EC.url_contains(fragment))
@@ -162,7 +163,7 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # Screenshots
     # ------------------------------------------------------------------ #
-    def screenshot(self, name: str, directory: Optional[Path] = None) -> Path:
+    def screenshot(self, name: str, directory: Path | None = None) -> Path:
         """Capture a screenshot to reports/screenshots/<name>.png."""
         target = directory or Path("reports/screenshots")
         target.mkdir(parents=True, exist_ok=True)
@@ -175,7 +176,7 @@ class BasePage:
     # ------------------------------------------------------------------ #
     # Misc
     # ------------------------------------------------------------------ #
-    def scroll_into_view(self, locator: Locator) -> "BasePage":
+    def scroll_into_view(self, locator: Locator) -> BasePage:
         element = self.find(locator)
         self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
         return self

@@ -8,7 +8,7 @@ custom browser options.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 def create_driver(
     browser: str = "chromium",
     headless: bool = True,
-    viewport: Dict[str, int] | None = None,
+    viewport: dict[str, int] | None = None,
     extra_options: list | None = None,
 ) -> Any:
     """Create and return a WebDriver instance.
@@ -74,9 +74,15 @@ def create_driver(
     else:
         raise ValueError(f"Unsupported browser: {browser!r}")
 
-    driver = webdriver.Chrome(service=service, options=options) if browser in ("chromium", "chrome") else \
-             webdriver.Firefox(service=service, options=options) if browser == "firefox" else \
-             webdriver.Edge(service=service, options=options)
+    driver = (
+        webdriver.Chrome(service=service, options=options)
+        if browser in ("chromium", "chrome")
+        else (
+            webdriver.Firefox(service=service, options=options)
+            if browser == "firefox"
+            else webdriver.Edge(service=service, options=options)
+        )
+    )
 
     driver.set_window_size(viewport["width"], viewport["height"])
     logger.info("Created %s WebDriver (headless=%s)", browser, headless)

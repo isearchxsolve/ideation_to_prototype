@@ -7,16 +7,14 @@ when tests run in parallel or against shared state.
 from __future__ import annotations
 
 import json
-import os
 import random
 import string
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
+from typing import Any, ClassVar
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -53,7 +51,7 @@ class User:
     created_at: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -71,7 +69,7 @@ class Product:
     created_at: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -79,7 +77,7 @@ class Product:
 class Order:
     order_number: str
     customer_email: str
-    items: List[Dict[str, Any]]
+    items: list[dict[str, Any]]
     subtotal: float
     tax: float
     shipping: float
@@ -90,7 +88,7 @@ class Order:
     created_at: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -106,7 +104,7 @@ class PaymentDetails:
     billing_address: str
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -117,33 +115,100 @@ class TestDataFactory:
     use system time for true uniqueness across parallel runs.
     """
 
-    FIRST_NAMES = [
-        "alice", "bob", "charlie", "diana", "eve", "frank", "grace", "henry",
-        "iris", "jack", "karen", "leo", "mia", "noah", "olivia", "peter",
+    __test__ = False  # not a pytest test class despite the Test* name
+
+    FIRST_NAMES: ClassVar[list[str]] = [
+        "alice",
+        "bob",
+        "charlie",
+        "diana",
+        "eve",
+        "frank",
+        "grace",
+        "henry",
+        "iris",
+        "jack",
+        "karen",
+        "leo",
+        "mia",
+        "noah",
+        "olivia",
+        "peter",
     ]
 
-    LAST_NAMES = [
-        "smith", "johnson", "williams", "brown", "jones", "garcia", "miller",
-        "davis", "rodriguez", "martinez", "hernandez", "lopez", "gonzalez",
+    LAST_NAMES: ClassVar[list[str]] = [
+        "smith",
+        "johnson",
+        "williams",
+        "brown",
+        "jones",
+        "garcia",
+        "miller",
+        "davis",
+        "rodriguez",
+        "martinez",
+        "hernandez",
+        "lopez",
+        "gonzalez",
     ]
 
-    CITIES = [
-        "newyork", "london", "paris", "tokyo", "berlin", "sydney", "toronto",
-        "mumbai", "dublin", "amsterdam", "seoul", "singapore",
+    CITIES: ClassVar[list[str]] = [
+        "newyork",
+        "london",
+        "paris",
+        "tokyo",
+        "berlin",
+        "sydney",
+        "toronto",
+        "mumbai",
+        "dublin",
+        "amsterdam",
+        "seoul",
+        "singapore",
     ]
 
-    COUNTRIES = ["us", "uk", "ca", "au", "de", "fr", "jp", "in", "ie", "nl"]
-
-    CATEGORIES = [
-        "electronics", "books", "clothing", "home", "sports", "toys",
-        "automotive", "health", "garden", "music",
+    COUNTRIES: ClassVar[list[str]] = [
+        "us",
+        "uk",
+        "ca",
+        "au",
+        "de",
+        "fr",
+        "jp",
+        "in",
+        "ie",
+        "nl",
     ]
 
-    PAYMENT_METHODS = ["credit_card", "debit_card", "paypal", "bank_transfer"]
+    CATEGORIES: ClassVar[list[str]] = [
+        "electronics",
+        "books",
+        "clothing",
+        "home",
+        "sports",
+        "toys",
+        "automotive",
+        "health",
+        "garden",
+        "music",
+    ]
 
-    ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"]
+    PAYMENT_METHODS: ClassVar[list[str]] = [
+        "credit_card",
+        "debit_card",
+        "paypal",
+        "bank_transfer",
+    ]
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    ORDER_STATUSES: ClassVar[list[str]] = [
+        "pending",
+        "processing",
+        "shipped",
+        "delivered",
+        "cancelled",
+    ]
+
+    def __init__(self, seed: int | None = None) -> None:
         if seed is None:
             seed = _now_ms()
         self.seed = seed
@@ -200,20 +265,24 @@ class TestDataFactory:
                 setattr(product, key, value)
         return product
 
-    def order(self, customer_email: Optional[str] = None, **overrides: Any) -> Order:
+    def order(self, customer_email: str | None = None, **overrides: Any) -> Order:
         if customer_email is None:
-            customer_email = f"customer.{_rand_alpha(6)}@test-{self._run_id}.example.com"
-        items: List[Dict[str, Any]] = []
+            customer_email = (
+                f"customer.{_rand_alpha(6)}@test-{self._run_id}.example.com"
+            )
+        items: list[dict[str, Any]] = []
         subtotal = 0.0
         for _ in range(self._rng.randint(1, 5)):
             price = round(self._rng.uniform(5.0, 200.0), 2)
             qty = self._rng.randint(1, 10)
-            items.append({
-                "product_id": str(uuid.uuid4()),
-                "name": f"item-{_rand_alpha(5)}",
-                "price": price,
-                "quantity": qty,
-            })
+            items.append(
+                {
+                    "product_id": str(uuid.uuid4()),
+                    "name": f"item-{_rand_alpha(5)}",
+                    "price": price,
+                    "quantity": qty,
+                }
+            )
             subtotal += price * qty
         tax = round(subtotal * 0.08, 2)
         shipping = round(self._rng.uniform(0.0, 25.0), 2)
@@ -236,7 +305,7 @@ class TestDataFactory:
                 setattr(order, key, value)
         return order
 
-    def payment(self, amount: Optional[float] = None, **overrides: Any) -> PaymentDetails:
+    def payment(self, amount: float | None = None, **overrides: Any) -> PaymentDetails:
         if amount is None:
             amount = round(self._rng.uniform(1.0, 5000.0), 2)
         payment = PaymentDetails(
@@ -244,7 +313,7 @@ class TestDataFactory:
             cvv=_rand_digits(3),
             expiry_month=self._rng.randint(1, 12),
             expiry_year=self._rng.randint(2025, 2035),
-            cardholder_name=f"{self._rng.choice(self.FIRST_NAMES).capitalize()} {_rng.choice(self.LAST_NAMES).capitalize()}",
+            cardholder_name=f"{self._rng.choice(self.FIRST_NAMES).capitalize()} {self._rng.choice(self.LAST_NAMES).capitalize()}",
             amount=amount,
             currency=self._rng.choice(["usd", "eur", "gbp", "jpy"]),
             billing_address=f"{self._rng.randint(1, 9999)} {_rand_alpha(6)} blvd",
@@ -254,16 +323,16 @@ class TestDataFactory:
                 setattr(payment, key, value)
         return payment
 
-    def bulk_users(self, count: int) -> List[User]:
+    def bulk_users(self, count: int) -> list[User]:
         return [self.user() for _ in range(count)]
 
-    def bulk_products(self, count: int) -> List[Product]:
+    def bulk_products(self, count: int) -> list[Product]:
         return [self.product() for _ in range(count)]
 
-    def bulk_orders(self, count: int) -> List[Order]:
+    def bulk_orders(self, count: int) -> list[Order]:
         return [self.order() for _ in range(count)]
 
-    def save_jsonl(self, records: List[Dict[str, Any]], filename: str) -> Path:
+    def save_jsonl(self, records: list[dict[str, Any]], filename: str) -> Path:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         path = DATA_DIR / filename
         with path.open("w", encoding="utf-8") as f:
@@ -272,10 +341,10 @@ class TestDataFactory:
         return path
 
 
-_factory_instance: Optional[TestDataFactory] = None
+_factory_instance: TestDataFactory | None = None
 
 
-def get_factory(seed: Optional[int] = None) -> TestDataFactory:
+def get_factory(seed: int | None = None) -> TestDataFactory:
     """Return a process-local factory singleton (seeded once per worker)."""
     global _factory_instance
     if _factory_instance is None:
