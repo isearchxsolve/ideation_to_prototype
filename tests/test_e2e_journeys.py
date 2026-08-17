@@ -6,6 +6,19 @@ import uuid
 
 import pytest
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+# Explicit wait used after navigations so we never race a page that is
+# still loading (implicit waits alone can miss mid-navigation states).
+WAIT_TIMEOUT = 10
+
+
+def _wait_for(driver, testid: str):
+    """Wait until the element with the given data-testid is present."""
+    return WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, f"[data-testid='{testid}']"))
+    )
 
 
 def _unique_email(prefix: str = "e2e") -> str:
@@ -13,11 +26,15 @@ def _unique_email(prefix: str = "e2e") -> str:
 
 
 def _signup_and_login(driver, live_server, email, password, name="E2EUser"):
-    """Helper: register a user and log in via browser."""
+    """Helper: register a user and log in via browser.
+
+    Uses explicit waits at each navigation boundary so the next step never
+    races a page that is still loading (the original implicit-wait-only
+    version flaked under parallel load).
+    """
     # Signup
     driver.get(f"{live_server}/signup")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-name']").send_keys(name)
+    _wait_for(driver, "signup-name").send_keys(name)
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-email']").send_keys(
         email
     )
@@ -28,17 +45,26 @@ def _signup_and_login(driver, live_server, email, password, name="E2EUser"):
         password
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-submit']").click()
-    driver.implicitly_wait(2)
+
+    # Wait for the signup POST to complete and render its confirmation
+    # before starting the next navigation — otherwise driver.get("/login")
+    # can race the form submission.
+    WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, "[data-testid='signup-success']"), "Account created!"
+        )
+    )
 
     # Login
     driver.get(f"{live_server}/login")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='login-email']").send_keys(email)
+    _wait_for(driver, "login-email").send_keys(email)
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-password']").send_keys(
         password
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-submit']").click()
-    driver.implicitly_wait(3)
+
+    # Confirm we reached the dashboard before returning
+    _wait_for(driver, "welcome-banner")
 
 
 @pytest.mark.e2e
@@ -104,15 +130,16 @@ def test_signup_login_post_message_journey_browser(driver, live_server, idx):
 
     # Post message
     driver.get(f"{live_server}/messages")
-    driver.implicitly_wait(3)
     msg_text = f"Hello from e2e journey {idx}!"
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='message-input']").send_keys(
-        msg_text
-    )
+    _wait_for(driver, "message-input").send_keys(msg_text)
     driver.find_element(By.CSS_SELECTOR, "[data-testid='message-submit']").click()
-    driver.implicitly_wait(3)
 
-    # Verify message appears
+    # Verify message appears (explicit wait across the POST → redirect)
+    WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "[data-testid='message-item']")
+        )
+    )
     messages = driver.find_elements(By.CSS_SELECTOR, "[data-testid='message-item']")
     assert len(messages) >= 1
 

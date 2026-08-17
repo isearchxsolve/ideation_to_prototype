@@ -17,6 +17,30 @@ from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 logger = logging.getLogger(__name__)
 
+# Container-compatibility flags for Chromium-based browsers (Chrome/Edge):
+# --no-sandbox is required inside unprivileged CI containers, and
+# --disable-dev-shm-usage prevents crashes from the small default /dev/shm.
+CHROMIUM_HARDENING_FLAGS = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+]
+
+# Flags that trim per-process memory/background work so several parallel
+# workers fit on CI runners and dev machines without OOM-killing a renderer.
+CHROMIUM_MEMORY_FLAGS = [
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-default-apps",
+    "--disable-sync",
+    "--disable-renderer-backgrounding",
+    "--metrics-recording-only",
+    "--no-first-run",
+    "--mute-audio",
+    "--hide-scrollbars",
+]
+
 
 def create_driver(
     browser: str = "chromium",
@@ -51,7 +75,7 @@ def create_driver(
         if headless:
             options.add_argument("--headless=new")
         options.add_argument(f"--window-size={viewport['width']},{viewport['height']}")
-        for opt in extra_options:
+        for opt in CHROMIUM_HARDENING_FLAGS + CHROMIUM_MEMORY_FLAGS + extra_options:
             options.add_argument(opt)
         service = webdriver.chrome.service.Service(ChromeDriverManager().install())
 
@@ -67,7 +91,8 @@ def create_driver(
         options = webdriver.EdgeOptions()
         if headless:
             options.add_argument("--headless=new")
-        for opt in extra_options:
+        options.add_argument(f"--window-size={viewport['width']},{viewport['height']}")
+        for opt in CHROMIUM_HARDENING_FLAGS + CHROMIUM_MEMORY_FLAGS + extra_options:
             options.add_argument(opt)
         service = webdriver.edge.service.Service(EdgeChromiumDriverManager().install())
 

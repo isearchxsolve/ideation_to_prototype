@@ -19,12 +19,15 @@ from flask import (
     session,
 )
 
+from src.demo.config import get_settings
+
 
 def create_app() -> Flask:
     """Create and configure the demo Flask application."""
+    settings = get_settings()
     app = Flask(__name__)
-    app.config["TESTING"] = True
-    app.config["SECRET_KEY"] = "test-secret-key-for-qa-only"
+    app.config["TESTING"] = False  # production-like; tests can override via env
+    app.config["SECRET_KEY"] = settings.SECRET_KEY
 
     # In-memory data stores
     users: dict[str, dict[str, Any]] = {}
@@ -263,11 +266,10 @@ def create_app() -> Flask:
 
 
 if __name__ == "__main__":
-    import os
-
+    settings = get_settings()
     app = create_app()
     app.run(
-        host=os.environ.get("APP_HOST", "127.0.0.1"),
-        port=int(os.environ.get("APP_PORT", "8000")),
-        debug=os.environ.get("APP_DEBUG", "0") == "1",
+        host=settings.APP_HOST,
+        port=settings.APP_PORT,
+        debug=settings.APP_DEBUG,
     )

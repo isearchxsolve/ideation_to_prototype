@@ -3,7 +3,11 @@
 Runs fast, static checks (no WebDriver) and reports PASS/FAIL per criterion.
 Exit code 0 only when every criterion is green.
 
-Usage: python validate_project.py
+Usage:
+    python validate_project.py          # full gate (local release)
+    python validate_project.py --ci     # CI gate: skips runtime-evidence
+                                        # checks (reports/, stability runs)
+                                        # that only exist after local runs
 """
 
 from __future__ import annotations
@@ -16,9 +20,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 RESULTS: list[tuple[str, bool, str]] = []
+# Checks that require local runtime evidence (reports/, stability history).
+# Skipped in --ci mode because a fresh checkout has no such artifacts.
+RUNTIME_EVIDENCE_CHECKS = {4, 6}
+CI_MODE = "--ci" in sys.argv
 
 
-def check(name: str, ok: bool, detail: str = "") -> None:
+def check(name: str, ok: bool, detail: str = "", num: int | None = None) -> None:
+    if CI_MODE and num in RUNTIME_EVIDENCE_CHECKS:
+        RESULTS.append((name, True, "skipped in --ci mode (runtime evidence)"))
+        return
     RESULTS.append((name, ok, detail))
 
 
@@ -86,6 +97,7 @@ def main() -> int:
     check(
         "4. HTML + JUnit reports present in reports/",
         report_html.exists() and junit_xml.exists(),
+        num=4,
     )
 
     # 5. CI workflow exists and runs suite headless
@@ -106,7 +118,7 @@ def main() -> int:
         clean = len(last5) == 5 and all(r.get("exit_code") == 0 for r in last5)
         ok6 = clean
         detail6 = f"last {len(last5)} runs, clean={clean}"
-    check("6. 5 consecutive clean runs", ok6, detail6)
+    check("6. 5 consecutive clean runs", ok6, detail6, num=6)
 
     # 7. Coverage matrix documents tested features
     matrix = ROOT / "docs" / "coverage_matrix.md"

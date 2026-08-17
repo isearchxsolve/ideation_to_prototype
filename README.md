@@ -84,10 +84,27 @@ cost per test.
 ```bash
 ruff check tests src     # lint
 black tests src          # format
-python validate_project.py   # acceptance-criteria gate
+python validate_project.py        # acceptance-criteria gate (full, local)
+python validate_project.py --ci   # CI gate: skips runtime-evidence checks
 ```
 
 ## CI
 
-`.github/workflows/qa.yml` runs each suite bucket headless on every push/PR
-to `master`/`main` and uploads `reports/` as artifacts.
+`.github/workflows/qa.yml` runs lint (ruff/black), a security scan
+(pip-audit + secret scan), and each suite bucket headless on every
+push/PR to `master`/`main`, uploading `reports/` as artifacts.
+
+## Deployment
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for Docker/Kubernetes
+instructions, rollback procedure, and the production security checklist.
+
+## Test evidence
+
+See [docs/TEST_EVIDENCE.md](docs/TEST_EVIDENCE.md) for the mapping of each
+production-readiness claim to concrete results from the 1,220-case Selenium
+suite (junit.xml, per-test JSON, 5-run stability window).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

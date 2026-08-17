@@ -89,6 +89,21 @@ def _build_driver(browser: str, headless: bool, viewport: dict[str, int]):
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
+        # Trim per-process memory so 4 parallel workers fit comfortably
+        # on CI runners / dev machines without OOM-killing the renderer.
+        for flag in (
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-default-apps",
+            "--disable-sync",
+            "--disable-renderer-backgrounding",
+            "--metrics-recording-only",
+            "--no-first-run",
+            "--mute-audio",
+            "--hide-scrollbars",
+        ):
+            options.add_argument(flag)
         driver = webdriver.Chrome(
             service=webdriver.chrome.service.Service(ChromeDriverManager().install()),
             options=options,
@@ -105,6 +120,23 @@ def _build_driver(browser: str, headless: bool, viewport: dict[str, int]):
         options = webdriver.EdgeOptions()
         if headless:
             options.add_argument("--headless=new")
+        options.add_argument(f"--window-size={viewport['width']},{viewport['height']}")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        for flag in (
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-default-apps",
+            "--disable-sync",
+            "--disable-renderer-backgrounding",
+            "--metrics-recording-only",
+            "--no-first-run",
+            "--mute-audio",
+            "--hide-scrollbars",
+        ):
+            options.add_argument(flag)
         driver = webdriver.Edge(
             service=webdriver.edge.service.Service(
                 EdgeChromiumDriverManager().install()
@@ -116,52 +148,110 @@ def _build_driver(browser: str, headless: bool, viewport: dict[str, int]):
     return driver
 
 
+class _DriverHolder:
+    """Holds a worker's WebDriver and rebuilds it if the session dies.
+
+    A long parallel run can lose its browser (OOM, renderer crash, driver
+    exit). Without recovery, every remaining test on that worker errors with
+    ``InvalidSessionIdException``. This holder detects a dead session with a
+    cheap round-trip and transparently provisions a fresh browser so the run
+    self-heals instead of cascading into hundreds of errors.
+    """
+
+    def __init__(self, browser: str, headless: bool, viewport: dict[str, int]):
+        self.browser = browser
+        self.headless = headless
+        self.viewport = viewport
+        self.driver: Any = None
+        self.rebuilds = 0
+
+    def _build(self) -> Any:
+        driver = _build_driver(self.browser, self.headless, self.viewport)
+        driver.set_window_size(self.viewport["width"], self.viewport["height"])
+        return driver
+
+    def ensure_alive(self) -> Any:
+        """Return a live driver, rebuilding the session if it has died."""
+        if self.driver is None:
+            self.driver = self._build()
+            return self.driver
+        try:
+            # Cheap round-trip: raises if the session/driver is gone.
+            _ = self.driver.title
+            return self.driver
+        except Exception:
+            logger.warning(
+                "WebDriver session died; rebuilding browser (rebuild #%d)",
+                self.rebuilds + 1,
+                exc_info=True,
+            )
+            try:
+                self.driver.quit()
+            except Exception:
+                logger.debug(
+                    "Ignoring error while quitting dead WebDriver", exc_info=True
+                )
+            self.rebuilds += 1
+            self.driver = self._build()
+            return self.driver
+
+    def quit(self) -> None:
+        if self.driver is not None:
+            try:
+                self.driver.quit()
+            except Exception:
+                logger.exception("Error quitting WebDriver")
+            self.driver = None
+
+
 @pytest.fixture(scope="session")
-def _session_driver(env_config: dict[str, Any]) -> Generator[Any, None, None]:
-    """One WebDriver per xdist worker, reused across tests for speed."""
-    driver_instance = _build_driver(
+def _session_driver(env_config: dict[str, Any]) -> Generator[_DriverHolder, None, None]:
+    """One self-healing WebDriver holder per xdist worker."""
+    holder = _DriverHolder(
         browser=env_config["browser"],
         headless=env_config["headless"],
         viewport=env_config["viewport"],
     )
-    driver_instance.set_window_size(
-        env_config["viewport"]["width"], env_config["viewport"]["height"]
-    )
+    holder.ensure_alive()
     try:
-        yield driver_instance
+        yield holder
     finally:
-        try:
-            driver_instance.quit()
-        except Exception:
-            logger.exception("Error quitting WebDriver")
+        holder.quit()
 
 
 @pytest.fixture(scope="function")
-def driver(_session_driver, env_config: dict[str, Any], live_server: str) -> Generator[Any, None, None]:
+def driver(
+    _session_driver, env_config: dict[str, Any], live_server: str
+) -> Generator[Any, None, None]:
     """Per-test handle over the shared worker browser with clean state.
 
-    Dismisses leftover alerts, navigates to the app origin so cookie
-    deletion targets the app domain (Chrome scopes delete_all_cookies to
-    the current origin), and resets implicit wait so one test's waits
-    cannot leak into the next.
+    Ensures the session is alive (rebuilding if it crashed), dismisses
+    leftover alerts, navigates to the app origin so cookie deletion targets
+    the app domain (Chrome scopes delete_all_cookies to the current origin),
+    and resets implicit wait so one test's waits cannot leak into the next.
     """
     from selenium.common.exceptions import NoAlertPresentException
 
+    active = _session_driver.ensure_alive()
     try:
-        _session_driver.switch_to.alert.dismiss()
+        active.switch_to.alert.dismiss()
     except NoAlertPresentException:
         pass  # no alert present is the common case
+    except Exception:
+        # Alert probe hit a dead session; rebuild once and continue.
+        logger.debug("Alert probe failed; ensuring driver is alive", exc_info=True)
+        active = _session_driver.ensure_alive()
     try:
-        _session_driver.get(live_server)
-        _session_driver.delete_all_cookies()
+        active.get(live_server)
+        active.delete_all_cookies()
     except Exception:
         logger.exception("Error clearing cookies before test")
-    _session_driver.implicitly_wait(env_config["implicit_wait"])
+    active.implicitly_wait(env_config["implicit_wait"])
     try:
-        yield _session_driver
+        yield active
     finally:
         try:
-            _session_driver.get("about:blank")
+            active.get("about:blank")
         except Exception:
             logger.exception("Error resetting browser after test")
 
@@ -169,7 +259,7 @@ def driver(_session_driver, env_config: dict[str, Any], live_server: str) -> Gen
 @pytest.fixture(scope="session")
 def browser_driver(_session_driver) -> Generator[Any, None, None]:
     """Session-scoped WebDriver for performance-critical suites."""
-    yield _session_driver
+    yield _session_driver.ensure_alive()
 
 
 # ---------------------------------------------------------------------------
