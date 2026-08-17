@@ -76,10 +76,7 @@ def test_full_signup_login_logout_journey_browser(driver, live_server, idx):
 
     # Step 1: Signup
     driver.get(f"{live_server}/signup")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-name']").send_keys(
-        f"Journey{idx}"
-    )
+    _wait_for(driver, "signup-name").send_keys(f"Journey{idx}")
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-email']").send_keys(
         email
     )
@@ -90,31 +87,35 @@ def test_full_signup_login_logout_journey_browser(driver, live_server, idx):
         password
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-submit']").click()
-    driver.implicitly_wait(2)
+
+    # Wait for the signup POST to settle before the next navigation
+    WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, "[data-testid='signup-success']"), "Account created!"
+        )
+    )
 
     # Step 2: Login
     driver.get(f"{live_server}/login")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='login-email']").send_keys(email)
+    _wait_for(driver, "login-email").send_keys(email)
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-password']").send_keys(
         password
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-submit']").click()
-    driver.implicitly_wait(3)
 
-    # Step 3: Dashboard
+    # Step 3: Dashboard (login POST redirects here)
+    _wait_for(driver, "welcome-banner")
     driver.get(f"{live_server}/dashboard")
-    driver.implicitly_wait(3)
     welcome = driver.find_elements(By.CSS_SELECTOR, "[data-testid='welcome-banner']")
     assert len(welcome) > 0
 
     # Step 4: Logout
     driver.get(f"{live_server}/logout")
-    driver.implicitly_wait(3)
+    _wait_for(driver, "nav-home")
 
-    # Step 5: Dashboard no longer accessible
+    # Step 5: Dashboard no longer accessible (redirects to login)
     driver.get(f"{live_server}/dashboard")
-    driver.implicitly_wait(3)
+    _wait_for(driver, "login-title")
     welcome = driver.find_elements(By.CSS_SELECTOR, "[data-testid='welcome-banner']")
     assert len(welcome) == 0
 
@@ -153,10 +154,7 @@ def test_failed_login_retry_journey_browser(driver, live_server, idx):
 
     # Register
     driver.get(f"{live_server}/signup")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-name']").send_keys(
-        f"Retry{idx}"
-    )
+    _wait_for(driver, "signup-name").send_keys(f"Retry{idx}")
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-email']").send_keys(
         email
     )
@@ -167,31 +165,42 @@ def test_failed_login_retry_journey_browser(driver, live_server, idx):
         password
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-submit']").click()
-    driver.implicitly_wait(2)
+
+    # Wait for the signup POST to settle before the next navigation
+    WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, "[data-testid='signup-success']"), "Account created!"
+        )
+    )
 
     # Failed login
     driver.get(f"{live_server}/login")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='login-email']").send_keys(email)
+    _wait_for(driver, "login-email").send_keys(email)
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-password']").send_keys(
         "WrongPass!"
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-submit']").click()
-    driver.implicitly_wait(3)
+
+    # The 401 response re-renders the login page with an error message
+    WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, "[data-testid='login-error']"), "Invalid credentials"
+        )
+    )
     welcome = driver.find_elements(By.CSS_SELECTOR, "[data-testid='welcome-banner']")
     assert len(welcome) == 0
 
     # Successful login
     driver.get(f"{live_server}/login")
-    driver.implicitly_wait(3)
-    driver.find_element(By.CSS_SELECTOR, "[data-testid='login-email']").send_keys(email)
+    _wait_for(driver, "login-email").send_keys(email)
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-password']").send_keys(
         password
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='login-submit']").click()
-    driver.implicitly_wait(3)
+
+    # Login POST redirects to the dashboard
+    _wait_for(driver, "welcome-banner")
     driver.get(f"{live_server}/dashboard")
-    driver.implicitly_wait(3)
     welcome = driver.find_elements(By.CSS_SELECTOR, "[data-testid='welcome-banner']")
     assert len(welcome) > 0
 
@@ -202,7 +211,9 @@ def test_navigation_browse_journey_browser(driver, live_server, idx):
     """Browser journey: browse through all pages."""
     for page in ["/", "/login", "/signup", "/about", "/messages"]:
         driver.get(f"{live_server}{page}")
-        driver.implicitly_wait(3)
+        WebDriverWait(driver, WAIT_TIMEOUT).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
         assert driver.find_element(By.TAG_NAME, "body").is_displayed()
 
 
@@ -212,24 +223,23 @@ def test_message_board_interaction_journey_browser(driver, live_server, idx):
     """Full browser message board interaction."""
     # View board
     driver.get(f"{live_server}/messages")
-    driver.implicitly_wait(3)
-    assert driver.find_element(
-        By.CSS_SELECTOR, "[data-testid='messages-title']"
-    ).is_displayed()
+    assert _wait_for(driver, "messages-title").is_displayed()
 
     # Post multiple messages
     for i in range(3):
         driver.get(f"{live_server}/messages")
-        driver.implicitly_wait(3)
-        driver.find_element(By.CSS_SELECTOR, "[data-testid='message-input']").send_keys(
-            f"Board {idx}_{i}"
-        )
+        _wait_for(driver, "message-input").send_keys(f"Board {idx}_{i}")
         driver.find_element(By.CSS_SELECTOR, "[data-testid='message-submit']").click()
-        driver.implicitly_wait(3)
+        # Sync across the POST → redirect by waiting for the posted text
+        WebDriverWait(driver, WAIT_TIMEOUT).until(
+            EC.text_to_be_present_in_element(
+                (By.CSS_SELECTOR, "[data-testid='messages-list']"), f"Board {idx}_{i}"
+            )
+        )
 
     # Verify messages
     driver.get(f"{live_server}/messages")
-    driver.implicitly_wait(3)
+    _wait_for(driver, "messages-title")
     messages = driver.find_elements(By.CSS_SELECTOR, "[data-testid='message-item']")
     assert len(messages) >= 3
 
@@ -241,7 +251,7 @@ def test_signup_form_clear_and_refill_journey_browser(driver, live_server, idx):
     email = _unique_email(f"clear_{idx}")
 
     driver.get(f"{live_server}/signup")
-    driver.implicitly_wait(3)
+    _wait_for(driver, "signup-name")
 
     # Fill with wrong data
     name_field = driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-name']")
@@ -274,7 +284,12 @@ def test_signup_form_clear_and_refill_journey_browser(driver, live_server, idx):
         "Pass123!"
     )
     driver.find_element(By.CSS_SELECTOR, "[data-testid='signup-submit']").click()
-    driver.implicitly_wait(2)
 
-    success = driver.find_elements(By.CSS_SELECTOR, "[data-testid='signup-success']")
-    assert len(success) > 0
+    # The success <p> is always present in the DOM, so assert on its text
+    # rather than its existence — otherwise this check would pass even if
+    # the signup had failed.
+    WebDriverWait(driver, WAIT_TIMEOUT).until(
+        EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, "[data-testid='signup-success']"), "Account created!"
+        )
+    )
