@@ -5,6 +5,8 @@ import importlib.util
 import os
 import sys
 import time
+
+os.environ["NEON_GENERATION_CORE"] = r"C:\Users\Admin\Downloads\neon_unified\generation_core.py"
 from pathlib import Path
 
 TARGET = Path(__file__).resolve().parent / "neon_architect_v5_perf.py"

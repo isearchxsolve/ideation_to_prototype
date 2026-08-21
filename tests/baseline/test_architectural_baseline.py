@@ -4,7 +4,6 @@ These tests run against isolated interfaces without relying on physical file loc
 or hardcoded line numbers.
 """
 
-import pytest
 
 class TestFlaskSecurityAndContracts:
     """Validates Flask error handling and Pydantic schema validation contracts."""
@@ -40,6 +39,7 @@ class TestFlaskSecurityAndContracts:
         assert errors[0]["field"] == "email"
         assert errors[1]["field"] == "age"
 
+
 class TestSeleniumPageObjectReliability:
     """Validates Selenium Page Object resilience contracts."""
 
@@ -67,6 +67,7 @@ class TestSeleniumPageObjectReliability:
 
         assert success is True
         assert attempts == 2
+
 
 class TestStateIsolationAndFactories:
     """Validates configuration isolation and deterministic test data generation."""

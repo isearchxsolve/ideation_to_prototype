@@ -154,9 +154,28 @@ def main() -> int:
         f"ruff={ruff.returncode}, black={black.returncode}",
     )
 
-    # 10. This validator itself returns green (computed below)
+    # 11. Idea execution pipeline reaches RELEASED state
+    clients_dir = ROOT / "idea-terminal-engine" / "clients" / "selftest"
+    release_files = list(clients_dir.glob("*/artifacts/release.json")) if clients_dir.exists() else []
+    
+    ok11 = False
+    detail11 = "No release.json found from selftest"
+    if release_files:
+        try:
+            rel_data = json.loads(release_files[0].read_text(encoding="utf-8"))
+            if rel_data.get("status") == "RELEASED":
+                ok11 = True
+                detail11 = "Found valid RELEASED artifact"
+            else:
+                detail11 = f"Artifact status is {rel_data.get('status')}"
+        except Exception as e:
+            detail11 = f"Error reading release.json: {e}"
+            
+    check("11. Idea execution pipeline reaches RELEASED state", ok11, detail11)
+
+    # 12. This validator itself returns green (computed below)
     all_green = all(ok for _, ok, _ in RESULTS)
-    check("10. validate_project returns green", all_green)
+    check("12. validate_project returns green", all_green)
 
     # Report
     print("=" * 64)

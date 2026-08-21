@@ -9,34 +9,28 @@ from __future__ import annotations
 import html
 import uuid
 import sqlite3
-import os
 from datetime import datetime, timezone
-from typing import Any
 
-from flask import (
-    Flask,
-    jsonify,
-    redirect,
-    request,
-    session,
-    g
-)
+from flask import Flask, jsonify, redirect, request, session, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.demo.config import get_settings
 
-DATABASE = 'demo_app.db'
+DATABASE = "demo_app.db"
+
 
 def get_db():
-    db = getattr(g, '_database', None)
+    db = getattr(g, "_database", None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
         db.row_factory = sqlite3.Row
     return db
 
+
 def init_db(app):
     with app.app_context():
         db = get_db()
-        db.execute("""
+        db.execute(
+            """
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -44,15 +38,19 @@ def init_db(app):
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
-        """)
-        db.execute("""
+        """
+        )
+        db.execute(
+            """
             CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY,
                 text TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )
-        """)
+        """
+        )
         db.commit()
+
 
 def create_app() -> Flask:
     """Create and configure the demo Flask application."""
@@ -65,7 +63,7 @@ def create_app() -> Flask:
 
     @app.teardown_appcontext
     def close_connection(exception):
-        db = getattr(g, '_database', None)
+        db = getattr(g, "_database", None)
         if db is not None:
             db.close()
 
@@ -308,14 +306,16 @@ def create_app() -> Flask:
         if request.method == "POST":
             email = request.form.get("email", "")
             password = request.form.get("password", "")
-            
+
             db = get_db()
-            user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-            
+            user = db.execute(
+                "SELECT * FROM users WHERE email = ?", (email,)
+            ).fetchone()
+
             if user and check_password_hash(user["password_hash"], password):
                 session["user_email"] = email
                 return redirect("/dashboard")
-                
+
             return (
                 LOGIN_HTML.replace(
                     '<p data-testid="login-error"',
@@ -343,7 +343,9 @@ def create_app() -> Flask:
                 )
 
             db = get_db()
-            existing = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+            existing = db.execute(
+                "SELECT id FROM users WHERE email = ?", (email,)
+            ).fetchone()
             if existing:
                 return (
                     SIGNUP_HTML.replace(
@@ -356,15 +358,15 @@ def create_app() -> Flask:
             db.execute(
                 "INSERT INTO users (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
                 (
-                    str(uuid.uuid4()), 
-                    name, 
-                    email, 
-                    generate_password_hash(password), 
-                    datetime.now(timezone.utc).isoformat()
-                )
+                    str(uuid.uuid4()),
+                    name,
+                    email,
+                    generate_password_hash(password),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
             )
             db.commit()
-            
+
             return SIGNUP_HTML.replace(
                 '<p data-testid="signup-success"',
                 '<p data-testid="signup-success">Account created!</p><p data-testid="signup-success"',
@@ -376,13 +378,13 @@ def create_app() -> Flask:
         email = session.get("user_email")
         if not email:
             return redirect("/login")
-            
+
         db = get_db()
         user = db.execute("SELECT name FROM users WHERE email = ?", (email,)).fetchone()
-        
+
         if not user:
             return redirect("/login")
-            
+
         username = user["name"] or "User"
         return DASHBOARD_HTML.format(username=html.escape(username))
 
@@ -399,12 +401,14 @@ def create_app() -> Flask:
             if msg:
                 db.execute(
                     "INSERT INTO messages (id, text, created_at) VALUES (?, ?, ?)",
-                    (str(uuid.uuid4()), msg, datetime.now(timezone.utc).isoformat())
+                    (str(uuid.uuid4()), msg, datetime.now(timezone.utc).isoformat()),
                 )
                 db.commit()
             return redirect("/messages")
 
-        messages = db.execute("SELECT * FROM messages ORDER BY created_at DESC LIMIT 50").fetchall()
+        messages = db.execute(
+            "SELECT * FROM messages ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
         # the list gets fetched in descending order, we want it chronological? The test doesn't care maybe, let's keep it simple.
         msgs_html = "\\n".join(
             f'<li data-testid="message-item" data-id="{m["id"]}">{html.escape(m["text"])}</li>'
@@ -415,8 +419,13 @@ def create_app() -> Flask:
     @app.route("/api/messages")
     def api_messages():
         db = get_db()
-        messages = db.execute("SELECT * FROM messages ORDER BY created_at DESC LIMIT 50").fetchall()
-        msg_list = [{"id": m["id"], "text": m["text"], "created_at": m["created_at"]} for m in reversed(messages)]
+        messages = db.execute(
+            "SELECT * FROM messages ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
+        msg_list = [
+            {"id": m["id"], "text": m["text"], "created_at": m["created_at"]}
+            for m in reversed(messages)
+        ]
         return jsonify({"messages": msg_list})
 
     @app.route("/api/users", methods=["GET", "POST"])
@@ -426,7 +435,9 @@ def create_app() -> Flask:
             data = request.get_json() or {}
             email = data.get("email", "")
             if email:
-                existing = db.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+                existing = db.execute(
+                    "SELECT id FROM users WHERE email = ?", (email,)
+                ).fetchone()
                 if not existing:
                     db.execute(
                         "INSERT INTO users (id, name, email, password_hash, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -435,12 +446,12 @@ def create_app() -> Flask:
                             data.get("name", ""),
                             email,
                             generate_password_hash(data.get("password", "")),
-                            datetime.now(timezone.utc).isoformat()
-                        )
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
                     )
                     db.commit()
             return jsonify({"created": True}), 201
-            
+
         users = db.execute("SELECT id, name, email FROM users").fetchall()
         return jsonify(
             {
@@ -454,14 +465,18 @@ def create_app() -> Flask:
     @app.route("/about")
     def about():
         return BASE_TEMPLATE.format(
-            title="About", css=CSS, content="<h1>About</h1><p class='subtitle'>Demo app for QA testing.</p>"
+            title="About",
+            css=CSS,
+            content="<h1>About</h1><p class='subtitle'>Demo app for QA testing.</p>",
         )
 
     @app.errorhandler(404)
     def not_found(e):
         return (
             BASE_TEMPLATE.format(
-                title="404", css=CSS, content='<h1 data-testid="error-404">Page Not Found</h1><p class="subtitle">Error 404</p>'
+                title="404",
+                css=CSS,
+                content='<h1 data-testid="error-404">Page Not Found</h1><p class="subtitle">Error 404</p>',
             ),
             404,
         )
@@ -470,7 +485,9 @@ def create_app() -> Flask:
     def server_error(e):
         return (
             BASE_TEMPLATE.format(
-                title="500", css=CSS, content='<h1 data-testid="error-500">Server Error</h1><p class="subtitle">Error 500</p>'
+                title="500",
+                css=CSS,
+                content='<h1 data-testid="error-500">Server Error</h1><p class="subtitle">Error 500</p>',
             ),
             500,
         )
