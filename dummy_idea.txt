@@ -1,0 +1,1 @@
+I want a simple command line python script that takes a user's name as input and prints a personalized greeting with ASCII art. It should be colorful and use the rich library.

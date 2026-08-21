@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      # SECRET_KEY must be set; in production, use a secret manager
+      - SECRET_KEY=${SECRET_KEY:-changeme-in-production-and-use-a-secret-manager}
+    # For development, you might want to mount the source code
+    # volumes:
+    #   - ./src:/app/src
+    #   - ./requirements-app.txt:/app/requirements-app.txt

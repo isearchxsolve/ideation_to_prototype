@@ -100,7 +100,5 @@ def test_404_page_displayed(driver, live_server, idx):
 @pytest.mark.parametrize("idx", range(10))
 def test_navigation_bar_present(driver, live_server, idx):
     """Navigation bar is present on every page."""
-    driver.get(live_server)
-    driver.implicitly_wait(3)
     nav_links = driver.find_elements(By.CSS_SELECTOR, "nav a")
     assert len(nav_links) >= 3
