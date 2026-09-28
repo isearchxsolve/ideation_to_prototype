@@ -23,3 +23,11 @@ idea-terminal-engine/
 # Local tool artifacts
 providers_list.png
 .aider*
+
+# commit_dirty hygiene - build artifacts are never committed
+node_modules/
+__pycache__/
+*.pyc
+.tmp_*
+
+password
